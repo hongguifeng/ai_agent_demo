@@ -1,0 +1,8 @@
+.venv
+workspace
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+api_key.sh
