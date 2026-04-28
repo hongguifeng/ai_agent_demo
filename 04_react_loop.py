@@ -167,6 +167,10 @@ def agent_loop(user_input: str, max_iterations: int = 10) -> str:
         # 有工具调用 → 执行每个工具
         messages.append(assistant_message)  # 先保存助手消息
 
+        if (assistant_message.content):
+            print(f"[思考] {assistant_message.content}")
+
+        print(f"[工具调用] LLM 想调用 {len(assistant_message.tool_calls)} 个工具：")
         for tool_call in assistant_message.tool_calls:
             func_name = tool_call.function.name
             func_args = json.loads(tool_call.function.arguments)

@@ -128,7 +128,11 @@ response = client.chat.completions.create(
 )
 
 assistant_message = response.choices[0].message
-print(f"[2] LLM 决策: ", end="")
+
+if (assistant_message.content):
+    print(f"[2] LLM 回复: {assistant_message.content}")
+
+print(f"  [2.1] LLM 决策: ", end="")
 
 # 检查 LLM 是否想调用工具
 if assistant_message.tool_calls:
@@ -157,8 +161,6 @@ if assistant_message.tool_calls:
         tools=tools,
     )
     print(f"[5] 最终回复: {final_response.choices[0].message.content}")
-else:
-    print(f"直接回复（未使用工具）: {assistant_message.content}")
 
 # ============================================================
 # 第 4 步：LLM 自主判断是否需要工具
@@ -203,6 +205,9 @@ response3 = client.chat.completions.create(
 )
 
 msg3 = response3.choices[0].message
+if (msg3.content):
+    print(f"思考: {msg3.content}")
+
 if msg3.tool_calls:
     print(f"LLM 要求调用 {len(msg3.tool_calls)} 个工具：")
     messages3.append(msg3)
