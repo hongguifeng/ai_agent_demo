@@ -29,6 +29,7 @@ from openai import OpenAI
 
 client = OpenAI(http_client=httpx.Client(verify=False))
 MODEL = os.environ.get("AGENT_MODEL", "gpt-4o-mini")
+print(f"当前使用模型: {MODEL}\n")
 
 # ============================================================
 # 第 1 步：定义工具（用 JSON Schema 描述函数签名）

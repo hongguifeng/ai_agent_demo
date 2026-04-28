@@ -60,6 +60,7 @@ from openai import OpenAI
 # ============================================================
 
 MODEL = os.environ.get("AGENT_MODEL", "gpt-4o-mini")
+print(f"当前使用模型: {MODEL}")
 MAX_TOKENS = 8000       # 上下文 token 预算
 MAX_ITERATIONS = 20     # 单次任务最大循环轮数
 COMMAND_TIMEOUT = 30    # 命令执行超时（秒）

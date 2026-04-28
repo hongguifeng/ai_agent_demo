@@ -26,6 +26,7 @@ from openai import OpenAI
 
 client = OpenAI(http_client=httpx.Client(verify=False))
 MODEL = os.environ.get("AGENT_MODEL", "gpt-4o-mini")
+print(f"当前使用模型: {MODEL}\n")
 
 # 工作目录 —— 所有文件操作限制在这个目录内
 WORKSPACE = Path(__file__).parent / "workspace"

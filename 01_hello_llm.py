@@ -29,6 +29,7 @@ client = OpenAI(http_client=httpx.Client(verify=False))
 
 # 模型名称：通过环境变量配置，默认 gpt-4o-mini
 MODEL = os.environ.get("AGENT_MODEL", "gpt-4o-mini")
+print(f"当前使用模型: {MODEL}\n")
 
 # ============================================================
 # 第 2 步：最简单的对话 —— 单轮问答
