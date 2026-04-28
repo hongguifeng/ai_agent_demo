@@ -120,19 +120,41 @@ print("=" * 60)
 print("示例 4：temperature 对比")
 print("=" * 60)
 
-prompt = [{"role": "user", "content": "给变量取个名字，表示用户年龄"}]
+# temperature 控制输出的随机性：
+#   0   → 几乎确定性，每次输出相同（适合 Agent、代码生成）
+#   0.7 → 适度随机（适合日常对话）
+#   1.5 → 高度随机（适合创意写作、头脑风暴）
+#
+# 注意：推理模型（如 o1、o3、gpt-5-nano）可能忽略 temperature，
+# 因为它们有内部推理过程，始终使用确定性推理。
+# 此示例在非推理模型（如 gpt-4o-mini）上效果最明显。
 
-for temp in [0, 0.5, 1.5]:
-    response = client.chat.completions.create(
-        model=MODEL,
-        messages=prompt,
-        temperature=temp,
-        max_tokens=50,
-    )
-    content = response.choices[0].message.content or "(空)"
-    print(f"  temperature={temp}: {content.strip()}")
+# 用"写一个比喻句"来体现创造性差异，每个温度采样 3 次
+prompt = [
+    {"role": "system", "content": "用一个比喻句描述编程，只回复比喻句本身，不超过 30 字。"},
+    {"role": "user", "content": "编程是什么？"},
+]
 
-print()
+for temp in [0, 0.7, 1.5]:
+    print(f"\n  temperature={temp}:")
+    for i in range(3):
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=prompt,
+            temperature=temp,
+        )
+        content = (response.choices[0].message.content or "").strip()
+        # 只取第一行
+        first_line = content.split("\n")[0] if content else "(空)"
+        print(f"    第{i+1}次: {first_line}")
+
+print("""
+  ↑ 观察规律：
+  - temperature=0   → 每次输出几乎相同（确定性）
+  - temperature=0.7 → 有一定变化，但大致合理
+  - temperature=1.5 → 每次差异很大，可能出现意想不到的表达
+  （如果你用的是推理模型，三组输出可能都一样，这是正常的）
+""")
 
 # ============================================================
 # 本章小结
