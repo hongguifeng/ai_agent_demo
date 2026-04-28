@@ -13,6 +13,8 @@
 | 05 | 实用工具集：文件与命令 | 文件读写、Shell 执行 |
 | 06 | 记忆与上下文管理 | 对话历史、Token 管理、摘要 |
 | 07 | 完整 Coding Agent | 整合所有模块，构建可用 Agent |
+| 08 | Skill 系统 | 可插拔能力、模块化设计、技能注册中心 |
+| 09 | MCP 协议 | Model Context Protocol、标准化工具连接 |
 
 ## 环境准备
 
@@ -40,6 +42,8 @@ python 04_react_loop.py
 python 05_file_tools.py
 python 06_memory.py
 python 07_full_agent.py
+python 08_skill_system.py
+python 09_mcp_protocol.py  # 需要 pip install mcp
 ```
 
 ## 核心原理
