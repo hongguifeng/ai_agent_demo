@@ -186,9 +186,9 @@ class ConversationMemory:
         ]
 
         response = client.chat.completions.create(
-                model=MODEL,
+            model=MODEL,
+            messages=summary_prompt,
             temperature=0,
-            max_tokens=300,
         )
 
         self.summary = response.choices[0].message.content
@@ -229,11 +229,14 @@ tools = [
 ]
 
 def calculator(expression: str) -> str:
-    allowed = set("0123456789+-*/().% ")
-    if not all(c in allowed for c in expression):
-        return "错误"
+    import math
+    safe_env = {
+        "__builtins__": {},
+        "abs": abs, "round": round, "min": min, "max": max,
+        "sqrt": math.sqrt, "pow": pow,
+    }
     try:
-        return str(eval(expression))
+        return str(eval(expression, safe_env))
     except Exception as e:
         return f"错误：{e}"
 
@@ -242,7 +245,7 @@ TOOL_MAP = {"calculator": calculator}
 
 def interactive_agent():
     """带记忆管理的交互式 Agent"""
-    memory = ConversationMemory(max_tokens=4000)  # 设一个较小的限制便于演示
+    memory = ConversationMemory(max_tokens=300)  # 设一个较小的限制便于演示
     memory.set_system(
         "你是一个有用的 AI 助手，支持多轮对话。\n"
         "你可以使用计算器工具来进行数学运算。\n"
@@ -309,19 +312,23 @@ def demo_memory():
     print("演示：记忆管理机制")
     print("=" * 60)
 
-    memory = ConversationMemory(max_tokens=2000)  # 很小的限制，容易触发压缩
-    memory.set_system("你是一个有用的助手，可以使用计算器。")
+    # 设置一个很小的 token 上限，让压缩更容易触发
+    memory = ConversationMemory(max_tokens=200)
+    memory.set_system("你是一个有用的助手，可以使用计算器。请简洁回复。")
 
+    # 多轮对话 —— 前几轮积累历史，后面会触发压缩
     conversations = [
-        "我叫小明，我今年 25 岁",
+        "我叫小明，我今年 25 岁，住在北京",
         "帮我算 25 * 365",
-        "那个结果代表我活了大约多少天，再乘以 24 算出小时数",
-        "你还记得我叫什么名字吗？我几岁了？",
+        "再帮我算 9125 * 24",
+        "帮我算 219000 / 8760，看看我活了多少个完整年份",
+        "帮我算 sqrt(144) + 56 * 2",  # 这里应该超过限制，触发压缩
+        "你还记得我叫什么名字吗？我住在哪里？",  # 验证压缩后摘要是否保留了关键信息
     ]
 
-    for user_input in conversations:
+    for i, user_input in enumerate(conversations, 1):
         print(f"\n{'─'*40}")
-        print(f"用户: {user_input}")
+        print(f"第 {i} 轮 | 用户: {user_input}")
 
         memory.add_user(user_input)
 
@@ -351,6 +358,16 @@ def demo_memory():
                 result = TOOL_MAP[name](**args)
                 print(f"  [结果] {result}")
                 memory.add_tool_result(tc.id, result)
+
+    # 最后展示摘要内容
+    if memory.summary:
+        print(f"\n{'─'*40}")
+        print(f"📝 最终摘要内容：")
+        print(f"   {memory.summary}")
+        print(f"完整对话内容：")
+        print(f"   {json.dumps(memory.get_messages(), ensure_ascii=False, indent=2)}")
+    else:
+        print("\n  ⚠️  未触发压缩（token 未超限）")
 
 # 运行演示
 demo_memory()
