@@ -1,122 +1,254 @@
 当前使用模型: mimo-v2-flash
 
-============================================================
-第 1 步：Skill 基类设计
-============================================================
-
-  Skill 基类定义了统一的接口：
-  - get_tools()  → 返回工具 JSON Schema
-  - execute()    → 执行工具并返回结果
-  - system_prompt → 额外的 System Prompt 指令
-
-  所有具体 Skill 继承这个基类，实现自己的工具。
+当前演示模式: 本地模拟 LLM 决策（设置 SKILL_DEMO_USE_LLM=1 可调用真实模型）
 
 ============================================================
-第 2 步：实现几个实用 Skill
+第 1 步：Markdown Skill 的文件结构
 ============================================================
 
-  已实现 3 个 Skill：
-  ✅ MathSkill    - 数学计算 (calculator)
-  ✅ DateTimeSkill - 日期时间 (get_datetime)
-  ✅ TextSkill    - 文本处理 (text_tool)
+  本章使用真实的 markdown 文件作为 Skill：
 
-  每个 Skill 都遵循相同的接口，可以自由组合。
+    skills/math/SKILL.md
+    skills/datetime/SKILL.md
+    skills/text/SKILL.md
+
+  每个 SKILL.md 包含两部分：
+
+  1. Frontmatter：给程序读取的机器索引
+
+     ---
+     name: math
+     description: 数学计算能力，适合精确计算、单位换算、公式求值
+     tools: calculator
+     ---
+
+  2. Markdown 正文：给 Agent 阅读的行为说明
+
+     # Math Skill
+     ## When to use
+     ...
+     ## Instructions
+     ...
+
+  真实系统一般不会一开始把所有 Skill 正文塞进 system prompt，
+  而是先扫描 name / description，等任务需要时再读取完整 markdown。
 
 ============================================================
-第 3 步：Skill Registry（技能注册中心）
+第 2 步：SkillLoader —— 扫描和读取 SKILL.md
 ============================================================
-  ✅ 已注册 Skill: math (数学计算能力，支持基本运算和科学计算)
-  ✅ 已注册 Skill: datetime (获取当前日期时间，进行日期计算)
-  ✅ 已注册 Skill: text (文本处理能力，支持字数统计、大小写转换等)
-
-  已注册 3 个 Skill: ['math', 'datetime', 'text']
-  共提供 3 个工具
-
-============================================================
-第 4 步：用 Skill 驱动的 Agent
-============================================================
+  Skill 目录: /home/gfhong/testcode/agent_demo/skills
+  扫描结果:
+  可用 Skill：
+  - datetime (未加载)：日期时间能力，适合查询当前日期、时间、时间戳和英文日期格式；tools: get_datetime
+  - math (未加载)：数学计算能力，适合精确计算、公式求值、简单科学计算；tools: calculator
+  - text (未加载)：文本处理能力，适合统计字符、统计单词、大小写转换和反转文本；tools: text_tool
 
 ============================================================
-第 5 步：测试 —— 让 Agent 自动选择 Skill
+第 3 步：工具实现和动态暴露
 ============================================================
 
---- 测试 1：数学计算 ---
+  注意这里的分层：
+
+  - Python 负责实现真正的工具函数，例如 calculator / text_tool
+  - Markdown Skill 负责告诉 Agent 什么时候用、怎么用、有什么约束
+  - Agent 未加载某个 Skill 前，不会暴露该 Skill 声明的工具
+
+  这和前一版“每个 Skill 是 Python 类”的教程不同：
+  Skill 的主要载体变成了可读、可编辑、可按需加载的 SKILL.md。
+
+============================================================
+第 4 步：让 Agent 按需读取 Skill
+============================================================
+
+============================================================
+第 5 步：测试 Markdown Skill Agent
+============================================================
+
+--- 测试 1：数学任务，应该加载 math Skill ---
 
   用户: 计算 2 的 20 次方
-  可用工具: ['calculator', 'get_datetime', 'text_tool']
+  当前已加载 Skill: ['无']
+  当前可用工具: ['list_skills', 'load_skill']
+  🔧 调用 [list_skills]: {}
+  📎 结果: 可用 Skill：
+- datetime (未加载)：日期时间能力，适合查询当前日期、时间、时间戳和英文日期格式；tools: get_datetime
+- math (未加载)：数学计算能力，适合精确计算、公式求值、简单科学计算；tools: calculator
+- text (未加载)：文本处理能力，适合统计字符、统计单词、大小写转换和反转文本；tools: text_tool
+  🔧 调用 [load_skill]: {'name': 'math'}
+  📎 结果: 已加载 Skill: math
+启用工具: calculator
+
+# Math Skill
+
+## When to Use
+
+Use this skill when the user asks for exact arithmetic, powers, roots, trigonometry, logarithms, or any result that should be calculated rather than estimated mentally.
+
+## Instructions
+
+- Use the `calculator` tool for numeric computation.
+- Convert the user's request into a compact mathematical expression.
+- Do not use arbitrary Python features; only use mathematical functions described by the tool.
+- After the tool returns a resul...
+  当前已加载 Skill: ['math']
+  当前可用工具: ['list_skills', 'load_skill', 'calculator']
   🔧 调用 [calculator]: {'expression': '2**20'}
   📎 结果: 1048576
-  助手: 2 的 20 次方等于 **1,048,576**。
+  助手: 2 的 20 次方是 1,048,576。
 
---- 测试 2：日期查询 ---
+--- 测试 2：日期任务，应该加载 datetime Skill ---
 
   用户: 现在几点了？
-  可用工具: ['calculator', 'get_datetime', 'text_tool']
-  🔧 调用 [get_datetime]: {'format': 'time'}
-  📎 结果: 17:43:29
-  助手: 现在是17:43:29。
+  当前已加载 Skill: ['无']
+  当前可用工具: ['list_skills', 'load_skill']
+  🔧 调用 [list_skills]: {}
+  📎 结果: 可用 Skill：
+- datetime (未加载)：日期时间能力，适合查询当前日期、时间、时间戳和英文日期格式；tools: get_datetime
+- math (未加载)：数学计算能力，适合精确计算、公式求值、简单科学计算；tools: calculator
+- text (未加载)：文本处理能力，适合统计字符、统计单词、大小写转换和反转文本；tools: text_tool
+  🔧 调用 [load_skill]: {'name': 'datetime'}
+  📎 结果: 已加载 Skill: datetime
+启用工具: get_datetime
 
---- 测试 3：文本处理 ---
+# DateTime Skill
+
+## When to Use
+
+Use this skill when the user asks about the current date, current time, timestamp, weekday, or wants a date formatted in English.
+
+## Instructions
+
+- Use `get_datetime` instead of guessing the current time.
+- Choose the smallest format that answers the user's request.
+- If the user asks for an English date, use `english_date`.
+- If another skill is needed to transform the returned text, load that skill too.
+
+## Tool Guide
+...
+  当前已加载 Skill: ['datetime']
+  当前可用工具: ['list_skills', 'load_skill', 'get_datetime']
+  🔧 调用 [get_datetime]: {'format': 'time'}
+  📎 结果: 15:05:05
+  助手: 现在是 15:05:05。
+
+--- 测试 3：文本任务，应该加载 text Skill ---
 
   用户: 帮我统计这段文字有多少个字符：Hello World 你好世界
-  可用工具: ['calculator', 'get_datetime', 'text_tool']
+  当前已加载 Skill: ['无']
+  当前可用工具: ['list_skills', 'load_skill']
+  🔧 调用 [list_skills]: {}
+  📎 结果: 可用 Skill：
+- datetime (未加载)：日期时间能力，适合查询当前日期、时间、时间戳和英文日期格式；tools: get_datetime
+- math (未加载)：数学计算能力，适合精确计算、公式求值、简单科学计算；tools: calculator
+- text (未加载)：文本处理能力，适合统计字符、统计单词、大小写转换和反转文本；tools: text_tool
+  🔧 调用 [load_skill]: {'name': 'text'}
+  📎 结果: 已加载 Skill: text
+启用工具: text_tool
+
+# Text Skill
+
+## When to Use
+
+Use this skill when the user asks to count characters, count words, uppercase text, lowercase text, or reverse text.
+
+## Instructions
+
+- Use `text_tool` for deterministic text operations.
+- Preserve spaces and punctuation exactly when counting or transforming text.
+- For Chinese text, `count_chars` counts Unicode characters, including spaces.
+- If the text comes from another tool result, pass that exact result into `text_tool`.
+
+## T...
+  当前已加载 Skill: ['text']
+  当前可用工具: ['list_skills', 'load_skill', 'text_tool']
   🔧 调用 [text_tool]: {'action': 'count_chars', 'text': 'Hello World 你好世界'}
   📎 结果: 16
-  助手: 这段文字 "Hello World 你好世界" 总共有 **16个字符**。
+  助手: 这段文字共有 16 个字符。
 
-具体来说：
-- "Hello World" 包含11个字符（包括空格）
-- "你好世界" 包含4个中文字符
-- 总共11 + 4 = 15个字符
-
-等等，让我重新计算一下。实际上，"Hello World" 是11个字符（H-e-l-l-o-空格-W-o-r-l-d），"你好世界" 是4个字符，总共应该是15个字符。但工具返回的是16个字符，可能是因为在"World"和"你好"之间还有一个空格。让我确认一下：
-
-"Hello World 你好世界" = H-e-l-l-o-空格-W-o-r-l-d-空格-你-好-世-界 = 16个字符
-
-是的，确实是16个字符。
-
---- 测试 4：跨 Skill 协作 ---
+--- 测试 4：跨 Skill 协作，应该加载 datetime + text ---
 
   用户: 把当前日期转成大写英文
-  可用工具: ['calculator', 'get_datetime', 'text_tool']
-  🔧 调用 [get_datetime]: {'format': 'date'}
-  📎 结果: 2026-04-28
-  🔧 调用 [text_tool]: {'action': 'to_upper', 'text': '2026-04-28'}
-  📎 结果: 2026-04-28
-  助手: 当前日期是：**2026-04-28**（已转换为大写格式）。
+  当前已加载 Skill: ['无']
+  当前可用工具: ['list_skills', 'load_skill']
+  🔧 调用 [list_skills]: {}
+  📎 结果: 可用 Skill：
+- datetime (未加载)：日期时间能力，适合查询当前日期、时间、时间戳和英文日期格式；tools: get_datetime
+- math (未加载)：数学计算能力，适合精确计算、公式求值、简单科学计算；tools: calculator
+- text (未加载)：文本处理能力，适合统计字符、统计单词、大小写转换和反转文本；tools: text_tool
+  🔧 调用 [load_skill]: {'name': 'datetime'}
+  📎 结果: 已加载 Skill: datetime
+启用工具: get_datetime
 
-由于日期本身是数字和符号，大写转换后保持不变。如果需要将日期中的英文月份名称转换为大写，请提供具体格式要求。
+# DateTime Skill
+
+## When to Use
+
+Use this skill when the user asks about the current date, current time, timestamp, weekday, or wants a date formatted in English.
+
+## Instructions
+
+- Use `get_datetime` instead of guessing the current time.
+- Choose the smallest format that answers the user's request.
+- If the user asks for an English date, use `english_date`.
+- If another skill is needed to transform the returned text, load that skill too.
+
+## Tool Guide
+...
+  🔧 调用 [get_datetime]: {'format': 'english_date'}
+  📎 结果: Tuesday, June 02, 2026
+  🔧 调用 [load_skill]: {'name': 'text'}
+  📎 结果: 已加载 Skill: text
+启用工具: text_tool
+
+# Text Skill
+
+## When to Use
+
+Use this skill when the user asks to count characters, count words, uppercase text, lowercase text, or reverse text.
+
+## Instructions
+
+- Use `text_tool` for deterministic text operations.
+- Preserve spaces and punctuation exactly when counting or transforming text.
+- For Chinese text, `count_chars` counts Unicode characters, including spaces.
+- If the text comes from another tool result, pass that exact result into `text_tool`.
+
+## T...
+  当前已加载 Skill: ['datetime', 'text']
+  当前可用工具: ['list_skills', 'load_skill', 'get_datetime', 'text_tool']
+  🔧 调用 [text_tool]: {'action': 'to_upper', 'text': 'Tuesday, June 02, 2026'}
+  📎 结果: TUESDAY, JUNE 02, 2026
+  助手: 当前日期的大写英文是：TUESDAY, JUNE 02, 2026。
 
 ============================================================
-第 6 步：动态 Skill 管理 —— 热插拔
+第 6 步：为什么要按需加载
 ============================================================
 
-  当前 Skills: ['math', 'datetime', 'text']
-  ❌ 已注销 Skill: text
-  注销 text 后: ['math', 'datetime']
-  剩余工具: ['calculator', 'get_datetime']
-  ✅ 已注册 Skill: text (文本处理能力，支持字数统计、大小写转换等)
-  重新注册后: ['math', 'datetime', 'text']
+  Skill 索引只包含 name / description / tools，通常很短。
+  完整 SKILL.md 只有在任务需要时才读进上下文。
 
-  ↑ 热插拔能力让 Agent 可以：
-  - 按需加载 Skill（节省 Token、减少干扰）
-  - 根据用户权限动态启用/禁用功能
-  - 支持插件系统（第三方开发 Skill）
+  本次演示中：
+  - 全部 Skill 正文字符数: 2300
+  - 已加载 Skill 正文字符数: 1506
+  - 已加载 Skill: ['datetime', 'text']
+
+  当 Skill 很多时，这个差异会非常大：
+  Agent 不必背着所有能力说明跑每一次请求，
+  只在需要某项能力时读取对应 markdown。
 
 ============================================================
 
 本章小结：
 
-1. Skill 是 Agent 能力的最小模块化单元
-2. 每个 Skill 包含：描述 + System Prompt + 工具定义 + 执行逻辑
-3. SkillRegistry 负责注册、发现、路由
-4. Agent 通过 Registry 获取工具和 Prompt，不需要知道具体 Skill
-5. 支持运行时热插拔，可以灵活增减能力
+1. 更常见的 Skill 形态是 SKILL.md，而不是写死的 Python 类
+2. Agent 启动时只扫描轻量索引：name / description / tools
+3. 任务需要时，Agent 调用 load_skill 读取完整 Markdown 说明
+4. Skill 被加载后，Agent 才获得它声明的底层工具
+5. Markdown 负责“怎么判断、怎么使用、有什么约束”
+6. Python 负责真正执行工具逻辑，二者解耦
 
-这种设计模式在主流 Agent 框架中广泛使用：
-- Claude Code 的 Tool 模块
-- OpenClaw 的 Skill 系统
-- LangChain 的 Tool / Toolkit 抽象
+这就是很多现代 Agent 产品的 Skill / Prompt Pack / Tool Guide 设计思路：
+把能力说明写成可维护的文档，让 Agent 在运行时按需读取。
 
 下一章，我们将学习 MCP（Model Context Protocol）——
 让不同 Agent 和工具之间通过标准协议互联互通！
